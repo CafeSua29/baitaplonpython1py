@@ -36,6 +36,7 @@ class ManageVehicles:
         self.ListVehicles.append(vehicle)
         ticket = self.ListTicket[0]
         self.ListTicket.pop(0)
+        vehicle.Ticket = ticket
         self.ListReceipt.append(Receipt(vehicle, ticket))
         self.ListTicketTaken.append(ticket)
         return ticket
@@ -218,13 +219,22 @@ class ManageVehicles:
 
         return duplicate_vehicles
 
-    def sortVehicles(self, criteria='time', order='ascending'):
-        if criteria == 'time':
-            self.ListReceipt.sort(key=lambda x: x.TimeIn, reverse=(order == 'descending'))
+    def sortVehicles(self, criteria, reverse=False):
+        if criteria == 'timein':
+            self.ListVehicles.sort(key=lambda x: x.Ticket.TimeIn, reverse=reverse)
         elif criteria == 'type':
-            self.ListReceipt.sort(key=lambda x: x.Vehicle.Type, reverse=(order == 'descending'))
-        else:
-            print("Invalid sorting criteria")
+            self.ListVehicles.sort(key=lambda x: x.Type, reverse=reverse)
+
+    def getVehicles(self):
+        return self.ListVehicles
+
+    def displaySortedVehicles(self):
+        for vehicle in self.ListVehicles:
+            print("Type: ", vehicle.Type)
+            print("License Plate: ", vehicle.LicensePlate)
+            print("Time In: ", vehicle.Ticket.TimeIn)
+            print("Time Out: ", vehicle.Ticket.TimeOut)
+            print("---------------------")
 
     def getVehicleByLicense(self, licenseplate):
         return next((vehicle for vehicle in self.ListVehicles if vehicle.LicensePlate == licenseplate), None)
@@ -321,19 +331,21 @@ def main():
                 ShowCriteriaOfListMenu()
                 CriteriaChoice = input("Enter your selection again: ")
                 if CriteriaChoice == "1":
-                    break
-                    
-                elif CriteriaChoice == "2":
                     print("List of vehicles currently stored decreases over time: ")
+                    managevehicles.sortVehicles("timein", True)
+                    managevehicles.displaySortedVehicles()
                     break
 
                 elif CriteriaChoice == "2":
                     print("List of vehicles currently stored increases over time: ")
+                    managevehicles.sortVehicles("timein", False)
+                    managevehicles.displaySortedVehicles()
                     break
 
                 elif CriteriaChoice == "3":
                     print("List of vehicles currently stored by vehicle type: ")
-                    ShowListVehicleByType(managevehicles.ListVehicles)
+                    managevehicles.sortVehicles("type", True)
+                    managevehicles.displaySortedVehicles()
                     break
 
                 else:
