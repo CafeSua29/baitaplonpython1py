@@ -198,8 +198,8 @@ class ManageVehicles:
     def getDuplicateEntries(self):
         current_datetime = datetime.datetime.now()
 
-        start_time = current_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_time = current_datetime.replace(hour=23, minute=51, second=0, microsecond=999999)
+        start_time = current_datetime.replace(hour=8, minute=0, second=0, microsecond=0)
+        end_time = current_datetime.replace(hour=22, minute=0, second=0, microsecond=999999)
 
         vehicles_in_day = {}
         duplicate_vehicles = []
@@ -207,8 +207,9 @@ class ManageVehicles:
         for receipt in self.ListReceipt:
             entry_time = receipt.TimeIn
             vehicle_license = receipt.Vehicle.LicensePlate
+            vehicle_type = receipt.Vehicle.Type
 
-            if start_time <= entry_time <= end_time:
+            if vehicle_type =="motorbike" and start_time <= entry_time <= end_time:
                 if vehicle_license in vehicles_in_day:
                     vehicles_in_day[vehicle_license] += 1
                 else:
@@ -233,7 +234,6 @@ class ManageVehicles:
             print("Type: ", vehicle.Type)
             print("License Plate: ", vehicle.LicensePlate)
             print("Time In: ", vehicle.Ticket.TimeIn)
-            print("Time Out: ", vehicle.Ticket.TimeOut)
             print("---------------------")
 
     def getVehicleByLicense(self, licenseplate):
@@ -305,23 +305,31 @@ def main():
         elif choice == "2":
             licenseplate = input("Enter license plate: ")
             ticketID = input("Enter ticket ID: ")
-            while not ticketID.isdigit():
-                ticketID = input("Invalid ticket. Enter ticket ID again: ")
-            vehicleinfo = input("Enter vehicle information: ")
 
-            vehicle = managevehicles.getVehicleByLicense(licenseplate)
-            ticket = managevehicles.getTicketByTicketId(int(ticketID))
+            while True:
+                if ticketID.isdigit():
+                    ticket = managevehicles.getTicketByTicketId(int(ticketID))
 
-            vehicleout = managevehicles.VehicleOut(vehicle, ticket, vehicleinfo)
-            if vehicleout:
-                receipt = managevehicles.getReceipt(vehicle, ticket)
-                ShowReceipt(receipt)
 
-                input("Press Enter to continue...")
-                print("The vehicle with license plate number {0} was retrieved".format(vehicle.LicensePlate))
+                vehicleinfo = input("Enter vehicle information: ")
+                vehicle = managevehicles.getVehicleByLicense(licenseplate)
 
-            else:
-                print("Failed to retrieve the vehicle")
+                if ticketID == "":
+                    vehicleout = managevehicles.VehicleOut(vehicle, None, vehicleinfo)
+                else:
+                    vehicleout = managevehicles.VehicleOut(vehicle, ticket, vehicleinfo)
+
+                if vehicleout:
+                    receipt = managevehicles.getReceipt(vehicle, ticket)
+                    ShowReceipt(receipt)
+
+                    input("Press Enter to continue...")
+                    print("The vehicle with license plate number {0} was retrieved".format(vehicle.LicensePlate))
+                    break
+                else:
+                    print("Failed to retrieve the vehicle")
+                    break
+
 
         elif choice == "3":
             print("Current number of vehicles in the garage: {0}".format(managevehicles.getAmountVehicle()))
