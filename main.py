@@ -25,6 +25,7 @@ class ManageVehicles:
     def __init__(self, vehicleamount):
         self.ListVehicles = []
         self.ListTicket = []
+        self.ListTicketTaken = []
         self.ListReceipt = []
         self.Turnovermotorbike = 0.0
         self.Turnoverbike = 0.0
@@ -36,6 +37,7 @@ class ManageVehicles:
         ticket = self.ListTicket[0]
         self.ListTicket.pop(0)
         self.ListReceipt.append(Receipt(vehicle, ticket))
+        self.ListTicketTaken.append(ticket)
         return ticket
 
     def VehicleOut(self, vehicle, ticket, vehicleinfo):
@@ -140,13 +142,21 @@ class ManageVehicles:
         return len(self.ListVehicles)
 
     def getTurnoverMotorbike(self):
-        return self.Turnovermotorbike
+        totalmotorbike = 0.0
+        for receipt in self.ListReceipt:
+            if receipt.TimeOut.day == datetime.datetime.now().day and receipt.Vehicle.Type == "motorbike":
+                totalmotorbike += receipt.Total
+        return totalmotorbike
 
     def getTurnoverBike(self):
-        return self.Turnoverbike
+        totalbike = 0.0
+        for receipt in self.ListReceipt:
+            if receipt.TimeOut.day == datetime.datetime.now().day and receipt.Vehicle.Type == "bike":
+                totalbike += receipt.Total
+        return totalbike
 
     def getTurnover(self):
-        return self.Turnovermotorbike + self.Turnoverbike
+        return self.getTurnoverBike() + self.getTurnoverMotorbike()
 
     def listVehiclelostTicket(self):
         listvehiclelostticket = []
@@ -155,21 +165,200 @@ class ManageVehicles:
                 listvehiclelostticket.append(receipt.Vehicle)
         return listvehiclelostticket
 
-managevehicles = ManageVehicles(100)
-vehicle1 = Vehicle("motorbike", "111")
-vehicle2 = Vehicle("bike", "222")
-vehicle3 = Vehicle("motorbike", "333")
-print(managevehicles.getAmountVehicle())
-ticket1 = managevehicles.VehicleIn(vehicle1)
-save = ticket1.TimeIn
-print(managevehicles.getAmountVehicle())
-ticket2 = managevehicles.VehicleIn(vehicle2)
-print(managevehicles.getAmountVehicle())
-vehicle11 = managevehicles.VehicleOut(vehicle1, ticket2, None)
-print(managevehicles.getAmountVehicle())
-vehicle11 = managevehicles.VehicleOut(vehicle1, ticket1, None)
-print(vehicle11.LicensePlate)
-print(managevehicles.getAmountVehicle())
-print(managevehicles.getTurnover())
+    def getWarningVehicles(self):
+        current_datetime = datetime.datetime.now()
+        warning_vehicles = []
 
+        for receipt in self.ListReceipt:
+            entry_time = receipt.TimeIn
+            vehicle_type = receipt.Vehicle.Type
+            delta_days = (current_datetime - entry_time).days
 
+            if (vehicle_type == "bike" and delta_days >= 3) or (vehicle_type == "motorbike" and delta_days >= 5):
+                warning_vehicles.append(receipt.Vehicle)
+
+        return warning_vehicles
+
+    def getLostTicketsToday(self):
+        current_datetime = datetime.datetime.now()
+
+        start_time = current_datetime.replace(hour=8, minute=0, second=0, microsecond=0)
+        end_time = current_datetime.replace(hour=22, minute=0, second=0, microsecond=0)
+
+        lost_tickets = []
+
+        for receipt in self.ListReceipt:
+            if start_time <= receipt.TimeIn <= end_time:
+                if receipt.isLossTicket:
+                    lost_tickets.append(receipt.Vehicle)
+
+        return lost_tickets
+
+    def getDuplicateEntries(self):
+        current_datetime = datetime.datetime.now()
+
+        start_time = current_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_time = current_datetime.replace(hour=23, minute=51, second=0, microsecond=999999)
+
+        vehicles_in_day = {}
+        duplicate_vehicles = []
+
+        for receipt in self.ListReceipt:
+            entry_time = receipt.TimeIn
+            vehicle_license = receipt.Vehicle.LicensePlate
+
+            if start_time <= entry_time <= end_time:
+                if vehicle_license in vehicles_in_day:
+                    vehicles_in_day[vehicle_license] += 1
+                else:
+                    vehicles_in_day[vehicle_license] = 1
+
+                if vehicles_in_day[vehicle_license] == 2:
+                    duplicate_vehicles.append(receipt.Vehicle)
+
+        return duplicate_vehicles
+
+    def sortVehicles(self, criteria='time', order='ascending'):
+        if criteria == 'time':
+            self.ListReceipt.sort(key=lambda x: x.TimeIn, reverse=(order == 'descending'))
+        elif criteria == 'type':
+            self.ListReceipt.sort(key=lambda x: x.Vehicle.Type, reverse=(order == 'descending'))
+        else:
+            print("Invalid sorting criteria")
+
+    def getVehicleByLicense(self, licenseplate):
+        return next((vehicle for vehicle in self.ListVehicles if vehicle.LicensePlate == licenseplate), None)
+
+    def getTicketByTicketId(self, ticketid):
+        return next((ticket for ticket in self.ListTicketTaken if ticket.ID == ticketid), None)
+
+    def getReceipt(self, vehicle, ticket):
+        return next((receipt for receipt in self.ListReceipt if receipt.Vehicle == vehicle and receipt.Ticket == ticket), None)
+
+def ShowListVehicle(listvehicle):
+    for vehicle in listvehicle:
+        print("Type: {1}, LicensePlate: {0}".format(vehicle.LicensePlate, vehicle.Type))
+
+def ShowListVehicleByType(listvehicle):
+    sortedlistvehicle = sorted(listvehicle, key=lambda t: t.Type)
+    ShowListVehicle(sortedlistvehicle)
+
+def ShowReceipt(receipt):
+    print("*"*20)
+    print("RECEIPT INFORMATION")
+    print("Vehicle - Type: {0}, LicensePlate: {1}".format(receipt.Vehicle.LicensePlate, receipt.Vehicle.Type))
+    print("Ticket - Ticket ID: {0}".format(receipt.Ticket.ID))
+    print("Time in: {0}".format(receipt.TimeIn))
+    print("Time out: {0}".format(receipt.TimeOut))
+    print("Is lost ticket: {0}".format(receipt.isLossTicket))
+    print("Total: {0}".format(receipt.Total))
+    print("*" * 20)
+
+def ShowMenu():
+    print("*" * 30)
+    print("PARKING MANAGEMENT SYSTEM")
+    print("1. Add new vehicle to the parking lot")
+    print("2. Take the vehicle out of the parking lot")
+    print("3. Current number of vehicles in the garage")
+    print("4. List of vehicles currently stored in the garage")
+    print("5. Revenue today")
+    print("6. List of vehicles that need to be warned (by vehicle type)")
+    print("7. List of vehicles with lost ticket today (by vehicle type)")
+    print("8. List of motorbikes with 2 submissions today")
+    print("9. Turn off the program")
+    print("*" * 30)
+
+def ShowCriteriaOfListMenu():
+    print("*" * 20)
+    print("CRITERIA")
+    print("1. Decrease over time criteria")
+    print("2. Increase over time criteria")
+    print("3. Vehicle type criteria")
+    print("*" * 20)
+
+def main():
+    managevehicles = ManageVehicles(100)
+
+    while True:
+        ShowMenu()
+        choice = input("Enter your selection: ")
+
+        if choice == "1":
+            type = input("Enter vehicle type (motorbike/bike): ")
+            while type not in {"bike", "motorbike"}:
+                type = input("Invalid type. Enter vehicle type again (motorbike/bike): ")
+            licenseplate = input("Enter license plate: ")
+            vehicle = Vehicle(type, licenseplate)
+            ticket = managevehicles.VehicleIn(vehicle)
+            print("Ticket has been created with ID: {0}".format(ticket.ID))
+
+        elif choice == "2":
+            licenseplate = input("Enter license plate: ")
+            ticketID = input("Enter ticket ID: ")
+            while not ticketID.isdigit():
+                ticketID = input("Invalid ticket. Enter ticket ID again: ")
+            vehicleinfo = input("Enter vehicle information: ")
+
+            vehicle = managevehicles.getVehicleByLicense(licenseplate)
+            ticket = managevehicles.getTicketByTicketId(int(ticketID))
+
+            vehicleout = managevehicles.VehicleOut(vehicle, ticket, vehicleinfo)
+            if vehicleout:
+                receipt = managevehicles.getReceipt(vehicle, ticket)
+                ShowReceipt(receipt)
+
+                input("Press Enter to continue...")
+                print("The vehicle with license plate number {0} was retrieved".format(vehicle.LicensePlate))
+
+            else:
+                print("Failed to retrieve the vehicle")
+
+        elif choice == "3":
+            print("Current number of vehicles in the garage: {0}".format(managevehicles.getAmountVehicle()))
+
+        elif choice == "4":
+            while True:
+                ShowCriteriaOfListMenu()
+                CriteriaChoice = input("Enter your selection again: ")
+                if CriteriaChoice == "1":
+                    break
+                    
+                elif CriteriaChoice == "2":
+                    print("List of vehicles currently stored decreases over time: ")
+                    break
+
+                elif CriteriaChoice == "2":
+                    print("List of vehicles currently stored increases over time: ")
+                    break
+
+                elif CriteriaChoice == "3":
+                    print("List of vehicles currently stored by vehicle type: ")
+                    ShowListVehicleByType(managevehicles.ListVehicles)
+                    break
+
+                else:
+                    print("Invalid selection. Please select again")
+
+        elif choice == "5":
+            print("Revenue today: ", managevehicles.getTurnover())
+
+        elif choice == "6":
+            print("List of vehicles that need to be warned (by vehicle type): ")
+            ShowListVehicleByType(managevehicles.getWarningVehicles())
+
+        elif choice == "7":
+            print("List of vehicles with lost ticket today (by vehicle type): ")
+            ShowListVehicleByType(managevehicles.getLostTicketsToday())
+
+        elif choice == "8":
+            print("List of motorbikes with 2 submissions today: ")
+            ShowListVehicle(managevehicles.getDuplicateEntries())
+
+        elif choice == "9":
+            print("End program")
+            break
+
+        else:
+            print("Invalid selection. Please select again")
+
+main()
